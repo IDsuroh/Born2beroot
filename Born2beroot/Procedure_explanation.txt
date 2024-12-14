@@ -1,0 +1,187 @@
+1. Download VM
+	type:
+		lsblk (to see the partitions)
+		aa-status (to check AppArmor status)
+
+	*AppArmor
+		- linux security system which provides Mandatory Access Control (MAC)
+		- allows the admin to restrict actions
+		- default with Debian
+
+2. Install Sudo
+	type:
+		su -
+		apt-get update -y (-y means yes to all)
+		apt-get upgrade -y
+		apt install sudo
+		usermod -aG sudo "username" (-append Group)
+			getent group sudo
+		sudo visudo
+			add:
+				"username"	ALL=(ALL) ALL
+
+	*apt and aptitude
+		- aptitude is a higher level package manager
+                - aptitude has a GUI graphic user interface
+		- apt is a lower level PM which can be used
+			by other higher level package managers
+		- aptitude is smarter and can automatically remove unused packages
+		- apt will only do what its told to do
+
+3. Install Git and Vim
+	type:
+		apt-get install git -y
+		apt-get install vim -y
+		git --version
+		vim --version
+
+4. Install & Configure SSH (method of authentication)
+	type:
+		sudo apt install openssh-server
+		sudo systemctl status ssh
+		sudo vim /etc/ssh/sshd_config
+			change:
+				#Port22 -> Port 4242
+		sudo grep Port /etc/ssh/sshd_config
+		sudo service ssh restart
+
+5. Install & Configure UFW
+(Uncomplicated Firewall allows to modify firewall and to configure ports)
+	type:
+		apt-get install ufw
+		sudo ufw enable
+		sudo ufw status numbered
+		sudo ufw allow ssh
+		sudo ufw allow 4242
+		sudo ufw status numbered
+
+	*UFW
+		- an interface to modify the fire wall of the device
+		- can configure ports to allow connections and closing
+		***  UFW is a oneshot service, which performs one task then exits.
+			However, it's still considered active,
+
+6. Connect to SSH
+	In our Campus, NAT doesn't work so change to 'bridged adaptor'.
+	Also, to get the VM host address, before exiting VM,
+		type:
+			hostname -I
+	and remember the "address".
+
+	Then go to terminal and
+		type:
+			ssh "username"@"address" -p 4242 (-p means port)
+
+7. Setting Password Policy in VM
+	download Password Quality Checking Library
+	In my case, libpam-pwquality
+		type:
+			sudo apt-get install libpam-pwquality
+			sudo vim /etc/pam.d/common-password
+
+	add rules by typing:
+		password  requisite     pam_pwquality.so/pam_deny.so  retry=3 minlen=10 ucredit=-1 lcredit=-1 dcredit=-1 maxrepeat=3 reject_username difok=7 enforce_for_root
+
+		sudo vim /etc/login.defs
+			PASS_MAX_DAYS 9999 PASS_MIN_DAYS 0
+			->	PASS_MAX_DAYS 30 PASS_MIN_DAYS 2
+
+		sudo reboot
+
+8. Creating a Group & a User to assign
+	type:
+		sudo groupadd "user"42
+    		getent group
+    		cut -d: -f1 /etc/passwd (to check local users)
+		sudo usermod -aG user42 "user"42
+		getent group "user"42 (to check if the user is the group)
+		chage -l "new_username" (to check if the password rules are working in users)
+		groupdel "groupname" - to delete groups
+		userdel "username" - to delete users
+
+		chage -M 30 -m 2 -W 7 "user"42
+		chage -M 30 -m 2 -W 7 root	<- to apply password policies.
+
+	Then create sudo.log like this; "/var/log/sudo/sudo.log"
+
+9. Configuring "Sudoers Group"
+	type: 
+		sudo nano /etc/sudoers
+
+	add:
+		Defaults	env_reset
+		Defaults	mail_badpass
+		Defaults	secure_path="/usr/local/sbin:/usr/local/bin:/usr/bin:/sbin:/bin"
+		Defaults	badpass_message="Password is wrong, please try again!"
+		Defaults	passwd_tries=3
+		Defaults	logfile="/var/log/sudo/sudo.log"
+		Defaults	log_input
+		Defaults	log_output
+		Defaults	requiretty
+
+10. Making monitoring.sh
+	type:
+		apt-get install -y net-tools (to install netstat tools)
+		cd /usr/local/bin/
+		touch monitoring.sh
+		chmod 777 monitoring.sh
+
+	*What is Cron?
+		Cron or cron job is a command line utility to schedule commands
+		or scripts to happen at specific intervals or a specific time
+		each day. Useful if you want to set your server to restart at
+		a specific time each day.
+
+    			cd /usr/local/bin – to show monitoring.sh
+    			sudo crontab -u root -e – to edit the cron job
+
+		*edit monitoring.sh
+
+11. Edit sudoers file again
+	In VM:
+	type:
+		sudo visudo
+	add:
+		'username' ALL=(root) NOPASSWD: /usr/local/bin/monitoring.sh 
+	under:
+		%sudo ALL=(ALL:ALL) ALL
+
+	then:
+		sudo reboot
+
+12. Add rule in crontab
+		type:
+			sudo crontab -e
+	in the end of file:
+		type:
+			*/10 * * * * /usr/local/bin/monitoring.sh
+		* '*' means every division of time.
+
+13. Getting the Signature.txt (Last Part Before Defence)
+
+⚠️ Warning: before you generate a signature number, turn off your Virtual Machine. ⚠️
+
+In terminal:
+	type:
+		cd
+		cd 'location where the VM is'
+    		*shasum 'VMname'.vdi
+    	Copy:	
+		the output number
+		create a signature.txt file
+		paste that number in the file.
+
+	submit the signature.txt file with the output number in it.
+
+	*'shasum' is a command-line utility used to compute and verify 'SHA (Secure Hash
+		Algorithm)' checksums for files. It is commonly used for verifying the
+		integrity of files by generating a unique hash value for the contents of
+		a file. This hash value can be compared against a known value to ensure
+		that the file has not been altered or corrupted.
+
+
+changing hostname:
+          sudo nano /etc/hostname
+          sudo nano /etc/hosts
+
+	sudo nano /etc/os-release
